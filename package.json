@@ -1,0 +1,38 @@
+{
+  "name": "career-ai-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Telegram AI agent that reads a user's Google Calendar and Gmail via OAuth.",
+  "engines": {
+    "node": ">=22"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "protobufjs"]
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "set-webhook": "tsx scripts/set-webhook.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.68",
+    "@google-cloud/kms": "^5.5.1",
+    "@hono/node-server": "^2.0.4",
+    "ai": "^6.0.198",
+    "googleapis": "^173.0.0",
+    "grammy": "^1.43.0",
+    "hono": "^4.12.24",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
