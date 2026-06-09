@@ -107,7 +107,6 @@ pnpm build        # emits dist/
 ```bash
 gcloud run deploy career-ai-assistant \
   --source . --region <REGION> --allow-unauthenticated \
-  --min-instances 1 --max-instances 1 \
   --set-env-vars "PUBLIC_URL=https://<service-url>,OPENAI_MODEL=gpt-4.1-mini,KMS_KEY_NAME=projects/.../cryptoKeys/<key>" \
   --set-env-vars "SUPABASE_URL=https://<project>.supabase.co" \
   --set-secrets "TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,OPENAI_API_KEY=...,GOOGLE_CLIENT_ID=...,GOOGLE_CLIENT_SECRET=...,OAUTH_STATE_SECRET=...,SUPABASE_SERVICE_ROLE_KEY=..."
@@ -125,8 +124,13 @@ gcloud kms keys add-iam-policy-binding <key> \
 Then point `PUBLIC_URL` at the deployed URL and run `pnpm set-webhook` (with that
 `PUBLIC_URL`). `GET /` is the health check.
 
-All state (tokens, profiles, sessions) now lives in Supabase, so the `--min/max-instances 1`
-pin above is no longer required for correctness — raise `max-instances` to scale out.
+**Scaling.** All state (tokens, profiles, sessions, usage) lives in Supabase, so no instance
+pin is needed — Cloud Run can scale to zero and out to many instances without losing data.
+`--min-instances` only trades cost for cold-start latency, and `--max-instances` is free to
+raise. One caveat before scaling wide: `SessionStore.append` is read-modify-write, so two
+*concurrent* messages from the **same** user landing on different instances can drop a turn of
+history (token accounting is safe — it uses the atomic `add_token_usage` RPC). Rare in
+practice; make `append` atomic or lock per `profile_id` if it ever matters.
 
 ## Limitations (v1)
 

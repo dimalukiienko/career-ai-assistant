@@ -107,8 +107,11 @@ rotated refresh token (rare) via the `tokens` event.
 
 ## v1 constraints (deliberate, documented in README)
 
-- Tokens, profiles, **and sessions** persist in Supabase, so all state survives cold starts
-  and the `min/max-instances=1` pin is no longer required for correctness.
+- Tokens, profiles, sessions, **and usage** all persist in Supabase — no process-local state
+  remains, so the `min/max-instances=1` pin is gone (Cloud Run may scale to zero / out). One
+  caveat: `SessionStore.append` is read-modify-write, so concurrent messages from the *same*
+  user on different instances can drop a turn of history (usage is safe — atomic
+  `add_token_usage` RPC). Make `append` atomic or lock per `profile_id` before scaling wide.
 - `gmail.readonly` is a Google **restricted scope**: fine with test users, needs app
   verification before public launch. (`openid`/`userinfo.email` are non-restricted.)
 - The agent runs inline in the webhook handler (fine for v1; queue later if latency grows).
