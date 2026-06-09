@@ -30,7 +30,7 @@ const schema = z.object({
 
   // Token encryption: KMS when KMS_KEY_NAME is set, else LOCAL_ENCRYPTION_KEY.
   KMS_KEY_NAME: z.string().optional(),
-  LOCAL_ENCRYPTION_KEY: z.string().min(1).optional(),
+  LOCAL_ENCRYPTION_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema> & {
