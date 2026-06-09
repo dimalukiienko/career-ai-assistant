@@ -6,6 +6,7 @@ import { LocalEncryptor } from "../src/crypto/local.js";
 import { InMemoryTokenStore } from "../src/storage/tokens.js";
 import { InMemorySessionStore } from "../src/storage/sessions.js";
 import { InMemoryProfileStore } from "../src/storage/profiles.js";
+import { InMemoryUsageStore } from "../src/storage/usage.js";
 import type { Deps } from "../src/deps.js";
 
 function makeDeps(): Deps {
@@ -14,6 +15,7 @@ function makeDeps(): Deps {
     profiles: new InMemoryProfileStore(),
     tokens: new InMemoryTokenStore(),
     sessions: new InMemorySessionStore(),
+    usage: new InMemoryUsageStore(),
   };
 }
 

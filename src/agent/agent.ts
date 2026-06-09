@@ -1,8 +1,16 @@
-import { generateText, stepCountIs, type ModelMessage } from "ai";
+import { generateText, stepCountIs, type LanguageModelUsage, type ModelMessage } from "ai";
 import { env } from "../config/env.js";
 import type { Deps } from "../deps.js";
+import type { TokenUsage } from "../storage/usage.js";
 import { getModel } from "./model.js";
 import { buildTools } from "./tools/index.js";
+
+/** Normalize an AI SDK usage object (fields are optional) into a concrete TokenUsage. */
+function usageFrom(u: LanguageModelUsage): TokenUsage {
+  const inputTokens = u.inputTokens ?? 0;
+  const outputTokens = u.outputTokens ?? 0;
+  return { inputTokens, outputTokens, totalTokens: u.totalTokens ?? inputTokens + outputTokens };
+}
 
 function systemPrompt(summary?: string | null): string {
   const now = new Date();
@@ -49,9 +57,12 @@ export async function runAgent(deps: Deps, { uid, oauthUrl, text }: RunAgentArgs
     stopWhen: stepCountIs(env.AGENT_MAX_STEPS),
   });
 
+  const usage = usageFrom(result.usage);
+  await deps.usage.record(uid, usage);
+
   // inputTokens ≈ the context size sent this turn — the right proxy for "how big the
-  // conversation has grown". Fall back through totalTokens and the prior count.
-  const tokens = result.usage.inputTokens ?? result.usage.totalTokens ?? prevTokens;
+  // conversation has grown". Fall back to the prior count if the provider omitted it.
+  const tokens = result.usage.inputTokens ?? (usage.totalTokens || prevTokens);
 
   await deps.sessions.append(uid, [userMessage, ...(result.response.messages as ModelMessage[])], tokens);
 
@@ -84,6 +95,9 @@ export async function summarizeSession(deps: Deps, uid: string): Promise<string>
     system,
     messages: [...messages, { role: "user", content: "Summarize our conversation so far as instructed." }],
   });
+
+  // The summarization call costs tokens too — count it toward the user's total.
+  await deps.usage.record(uid, usageFrom(result.usage));
 
   const condensed = result.text.trim();
   if (!condensed) return summary ?? "";

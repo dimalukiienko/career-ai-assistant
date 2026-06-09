@@ -154,12 +154,52 @@ export type Database = {
         }
         Relationships: []
       }
+      token_usage: {
+        Row: {
+          input_tokens: number
+          output_tokens: number
+          profile_id: string
+          total_tokens: number
+          updated_at: string
+        }
+        Insert: {
+          input_tokens?: number
+          output_tokens?: number
+          profile_id: string
+          total_tokens?: number
+          updated_at?: string
+        }
+        Update: {
+          input_tokens?: number
+          output_tokens?: number
+          profile_id?: string
+          total_tokens?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_usage_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      add_token_usage: {
+        Args: {
+          p_input: number
+          p_output: number
+          p_profile_id: string
+          p_total: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

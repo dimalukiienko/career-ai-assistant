@@ -27,6 +27,7 @@ const HELP = [
   "/help — this message",
   "/new — start a fresh conversation",
   "/summarize — condense this chat and keep going",
+  "/usage — tokens you've used so far",
 ].join("\n");
 
 const NO_LINK = { link_preview_options: { is_disabled: true } } as const;
@@ -78,6 +79,15 @@ export function createBot(deps: Deps): Bot {
     const summary = await summarizeSession(deps, uid);
     await deps.sessions.rotateWithSummary(uid, summary);
     await ctx.reply("📝 Condensed our chat — I'll keep the key context. Carry on!");
+  });
+
+  bot.command("usage", async (ctx) => {
+    if (!ctx.from) return;
+    const u = await deps.usage.total(String(ctx.from.id));
+    await ctx.reply(
+      `📊 You've used ${u.totalTokens.toLocaleString()} tokens so far ` +
+        `(in ${u.inputTokens.toLocaleString()} / out ${u.outputTokens.toLocaleString()}).`,
+    );
   });
 
   bot.callbackQuery("sess:summarize", async (ctx) => {
