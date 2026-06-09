@@ -48,7 +48,7 @@ function load(): Env {
 
   return {
     ...e,
-    googleRedirectUri: e.GOOGLE_REDIRECT_URI ?? `${e.PUBLIC_URL}/oauth/google/callback`,
+    googleRedirectUri: e.GOOGLE_REDIRECT_URI || `${e.PUBLIC_URL}/oauth/google/callback`,
   };
 }
 
