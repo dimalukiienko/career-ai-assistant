@@ -1,7 +1,9 @@
 import type { Hono } from "hono";
+import type { Bot } from "grammy";
 import type { Deps } from "../../deps.js";
 import { verifyStartLink, createOAuthState, verifyOAuthState } from "../../auth/state.js";
 import { buildAuthUrl, exchangeCode } from "../../google/oauth.js";
+import { replayAfterAuth } from "../../bot/post-auth.js";
 
 function page(title: string, body: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;text-align:center;color:#222}h1{font-size:1.4rem}p{color:#555}</style></head><body><h1>${title}</h1><p>${body}</p></body></html>`;
@@ -12,7 +14,7 @@ function page(title: string, body: string): string {
  *   GET /oauth/google/start    — verifies the bot-signed link, mints fresh state, redirects to consent.
  *   GET /oauth/google/callback — verifies state, exchanges the code, stores the encrypted refresh token.
  */
-export function registerOAuth(app: Hono, deps: Deps): void {
+export function registerOAuth(app: Hono, deps: Deps, bot: Bot): void {
   app.get("/oauth/google/start", (c) => {
     const uid = c.req.query("u");
     const sig = c.req.query("sig");
@@ -54,6 +56,11 @@ export function registerOAuth(app: Hono, deps: Deps): void {
         scope: tokens.scope ?? undefined,
         tokenType: tokens.token_type ?? undefined,
       });
+
+      // Detached: re-run any question that was waiting behind the connect prompt and post the
+      // answer to the chat. The "Connected" page returns immediately; this finishes in the
+      // background and swallows its own errors.
+      void replayAfterAuth(deps, bot, verified.uid);
 
       return c.html(page("✅ Connected", "Your Google account is connected. Return to Telegram and ask me anything."));
     } catch (err) {

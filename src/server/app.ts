@@ -10,6 +10,6 @@ export function createApp(deps: Deps, bot: Bot): Hono {
   const app = new Hono();
   registerHealth(app);
   registerTelegram(app, bot);
-  registerOAuth(app, deps);
+  registerOAuth(app, deps, bot);
   return app;
 }
