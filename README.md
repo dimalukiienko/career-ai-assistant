@@ -48,6 +48,7 @@ Source map: `src/config` (env), `src/crypto` (Encryptor seam), `src/storage` (st
    ```bash
    cp .env.example .env
    # generate secrets:
+   node -e "console.log('TELEGRAM_WEBHOOK_SECRET=' + require('crypto').randomBytes(24).toString('base64url'))"
    node -e "console.log('OAUTH_STATE_SECRET=' + require('crypto').randomBytes(24).toString('base64url'))"
    node -e "console.log('LOCAL_ENCRYPTION_KEY=' + require('crypto').randomBytes(32).toString('base64'))"
    ```
@@ -59,12 +60,23 @@ The model is set by `OPENAI_MODEL` (OpenAI only). Encryption uses **Cloud KMS** 
 
 ## Run locally
 
-Cloud Run / Telegram need a public HTTPS URL, so tunnel to your local port:
+Cloud Run / Telegram need a public HTTPS URL, so tunnel to your local port. Pick one:
 
 ```bash
-pnpm dev                                   # starts on :8080
+pnpm dev                                   # starts on :8080, in one shell
+
+# Option A — cloudflared: zero setup, no login required
 cloudflared tunnel --url http://localhost:8080   # in another shell; copy the https URL
+
+# Option B — ngrok: requires a (free) account + `ngrok config add-authtoken <token>` once
+ngrok http 8080                                  # copy the https URL
 ```
+
+**Which to use?** `cloudflared` needs no account, but its URL changes on every restart —
+so you'd have to update the OAuth redirect URI in your Google client each time. `ngrok`
+requires a one-time login, but on the free plan you can claim a **static domain**
+(`ngrok http --url=<your-name>.ngrok-free.app 8080`) that survives restarts, so you set the
+Google redirect URI once. Prefer `ngrok` if you'll be restarting often.
 
 Set `PUBLIC_URL` in `.env` to the tunnel URL (and add `${PUBLIC_URL}/oauth/google/callback`
 to your Google client), then register the webhook and message your bot:
