@@ -17,6 +17,9 @@ const schema = z.object({
   OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
   OPENAI_MODEL: z.string().min(1).default("gpt-4.1-mini"),
   AGENT_MAX_STEPS: z.coerce.number().int().positive().max(50).default(8),
+  // Context token threshold `n`: at `n` the bot offers to summarize or start fresh; at `2n`
+  // it auto-summarizes to keep cost/latency bounded.
+  SESSION_TOKEN_LIMIT: z.coerce.number().int().positive().default(12000),
 
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),

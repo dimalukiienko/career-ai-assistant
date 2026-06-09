@@ -3,18 +3,18 @@ import { env } from "./config/env.js";
 import { getEncryptor } from "./crypto/encryptor.js";
 import type { Encryptor } from "./crypto/encryptor.js";
 import type { Database } from "./types/database.types.js";
-import { InMemorySessionStore, type SessionStore } from "./storage/sessions.js";
+import type { SessionStore } from "./storage/sessions.js";
 import type { TokenStore } from "./storage/tokens.js";
 import type { ProfileStore } from "./storage/profiles.js";
 import { SupabaseProfileStore } from "./storage/supabase-profiles.js";
 import { SupabaseTokenStore } from "./storage/supabase-tokens.js";
+import { SupabaseSessionStore } from "./storage/supabase-sessions.js";
 
 /**
  * Composition root: the single place process-wide singletons are constructed.
  *
- * NOTE (v1): Google tokens + profiles are persisted in Supabase, so they survive cold
- * starts. Sessions are still in-memory, so conversation history is per-instance and lost on
- * restart — keep that in mind when scaling instances.
+ * NOTE (v1): tokens, profiles, and now conversation sessions are all persisted in Supabase,
+ * so they survive cold starts. The InMemory* impls remain as the test seam.
  */
 export interface Deps {
   encryptor: Encryptor;
@@ -35,7 +35,7 @@ export function getDeps(): Deps {
       encryptor: getEncryptor(),
       profiles,
       tokens: new SupabaseTokenStore(supabase, profiles),
-      sessions: new InMemorySessionStore(),
+      sessions: new SupabaseSessionStore(supabase, profiles),
     };
   }
   return cached;

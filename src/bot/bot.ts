@@ -1,8 +1,8 @@
-import { Bot } from "grammy";
+import { Bot, InlineKeyboard, type Context } from "grammy";
 import { env } from "../config/env.js";
 import type { Deps } from "../deps.js";
 import { buildStartUrl } from "../auth/state.js";
-import { runAgent } from "../agent/agent.js";
+import { runAgent, summarizeSession } from "../agent/agent.js";
 
 const WELCOME = [
   "👋 Hi! I'm your career assistant.",
@@ -12,7 +12,7 @@ const WELCOME = [
   "• \"Summarize my emails from last week.\"",
   "",
   "The first time you ask, I'll send you a link to securely connect your Google account.",
-  "Type /help for more, or /reset to clear our conversation.",
+  "Type /help for more, or /new to start a fresh conversation.",
 ].join("\n");
 
 const HELP = [
@@ -25,8 +25,18 @@ const HELP = [
   "Commands:",
   "/start — intro",
   "/help — this message",
-  "/reset — clear our conversation history",
+  "/new — start a fresh conversation",
+  "/summarize — condense this chat and keep going",
 ].join("\n");
+
+const NO_LINK = { link_preview_options: { is_disabled: true } } as const;
+
+/** Buttons offered when a conversation's context crosses the token threshold. */
+function offerKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("📝 Summarize & continue", "sess:summarize")
+    .text("🆕 Start fresh", "sess:new");
+}
 
 /** Build the grammY bot wired to the shared dependencies. */
 export function createBot(deps: Deps): Bot {
@@ -54,9 +64,38 @@ export function createBot(deps: Deps): Bot {
   bot.command("start", (ctx) => ctx.reply(WELCOME));
   bot.command("help", (ctx) => ctx.reply(HELP));
 
-  bot.command("reset", async (ctx) => {
+  // /new and /reset both close the active session and start fresh.
+  const startFresh = async (ctx: Context) => {
     if (ctx.from) await deps.sessions.reset(String(ctx.from.id));
-    await ctx.reply("Cleared. We're starting fresh. ✨");
+    await ctx.reply("🆕 Started a fresh conversation. ✨");
+  };
+  bot.command("new", startFresh);
+  bot.command("reset", startFresh);
+
+  bot.command("summarize", async (ctx) => {
+    if (!ctx.from) return;
+    const uid = String(ctx.from.id);
+    const summary = await summarizeSession(deps, uid);
+    await deps.sessions.rotateWithSummary(uid, summary);
+    await ctx.reply("📝 Condensed our chat — I'll keep the key context. Carry on!");
+  });
+
+  bot.callbackQuery("sess:summarize", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!ctx.from) return;
+    const uid = String(ctx.from.id);
+    const summary = await summarizeSession(deps, uid);
+    await deps.sessions.rotateWithSummary(uid, summary);
+    await ctx.editMessageReplyMarkup().catch(() => {});
+    await ctx.reply("📝 Condensed our chat — I'll keep the key context. Carry on!");
+  });
+
+  bot.callbackQuery("sess:new", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!ctx.from) return;
+    await deps.sessions.reset(String(ctx.from.id));
+    await ctx.editMessageReplyMarkup().catch(() => {});
+    await ctx.reply("🆕 Started a fresh conversation. ✨");
   });
 
   bot.on("message:text", async (ctx) => {
@@ -65,12 +104,13 @@ export function createBot(deps: Deps): Bot {
 
     await ctx.replyWithChatAction("typing").catch(() => {});
     try {
-      const reply = await runAgent(deps, {
+      const result = await runAgent(deps, {
         uid,
         oauthUrl: buildStartUrl(uid),
         text: ctx.message.text,
       });
-      await ctx.reply(reply, { link_preview_options: { is_disabled: true } });
+      await ctx.reply(result.text, NO_LINK);
+      await applyThresholdPolicy(deps, ctx, uid, result.prevTokens, result.tokens);
     } catch (err) {
       console.error(`[bot] agent run failed for ${uid}:`, err);
       await ctx.reply("Something went wrong while processing that. Please try again in a moment.");
@@ -80,4 +120,31 @@ export function createBot(deps: Deps): Bot {
   bot.catch((err) => console.error("[bot] unhandled error:", err.error));
 
   return bot;
+}
+
+/**
+ * After a turn, nudge or rotate based on context size: at `2n` auto-summarize (cost guard);
+ * on the turn that first crosses `n`, offer the summarize/new choice.
+ */
+async function applyThresholdPolicy(
+  deps: Deps,
+  ctx: Context,
+  uid: string,
+  prevTokens: number,
+  tokens: number,
+): Promise<void> {
+  const limit = env.SESSION_TOKEN_LIMIT;
+
+  if (tokens >= 2 * limit) {
+    const summary = await summarizeSession(deps, uid);
+    await deps.sessions.rotateWithSummary(uid, summary);
+    await ctx.reply("📝 This chat got long, so I condensed it to keep things fast — the key context is preserved.");
+    return;
+  }
+
+  if (prevTokens < limit && tokens >= limit) {
+    await ctx.reply("This chat is getting long. Want me to condense it or start fresh?", {
+      reply_markup: offerKeyboard(),
+    });
+  }
 }

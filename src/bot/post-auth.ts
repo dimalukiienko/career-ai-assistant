@@ -47,16 +47,17 @@ export function pendingReplay(history: ModelMessage[]): ReplayPlan | null {
  */
 export async function replayAfterAuth(deps: Deps, bot: Bot, uid: string): Promise<void> {
   try {
-    const history = await deps.sessions.getHistory(uid);
-    const plan = pendingReplay(history);
+    const { messages } = await deps.sessions.getActive(uid);
+    const plan = pendingReplay(messages);
 
     let message = MOCK_SUCCESS;
     if (plan) {
       // Rewrite the session without the failed needs_auth turn, then let runAgent re-run the
-      // question against clean history (tokens now exist, so the tool call succeeds).
+      // question against clean history (tokens now exist, so the tool call succeeds). The 0
+      // token count is a placeholder — runAgent immediately re-records the real count.
       await deps.sessions.reset(uid);
-      if (plan.priorHistory.length) await deps.sessions.append(uid, plan.priorHistory);
-      message = await runAgent(deps, { uid, oauthUrl: buildStartUrl(uid), text: plan.text });
+      if (plan.priorHistory.length) await deps.sessions.append(uid, plan.priorHistory, 0);
+      message = (await runAgent(deps, { uid, oauthUrl: buildStartUrl(uid), text: plan.text })).text;
     }
 
     await bot.api.sendMessage(Number(uid), message, {

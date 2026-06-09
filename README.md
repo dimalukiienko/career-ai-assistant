@@ -20,9 +20,10 @@ The first time a tool needs Google access, the bot sends you a link to connect y
 - **googleapis** — Gmail + Calendar
 - **Cloud KMS** — envelope encryption for refresh tokens
 
-Tokens + profiles persist in **Supabase** (Postgres); conversation **sessions** are still
-in-memory, behind the `SessionStore` interface so a Supabase backend can be dropped in later.
-See [Limitations](#limitations).
+Tokens, profiles, and conversation **sessions** all persist in **Supabase** (Postgres). A
+user has one active session; when its context crosses `SESSION_TOKEN_LIMIT` (`n`) tokens the
+bot offers to **summarize & continue** or **start fresh** (also `/summarize` and `/new`), and
+auto-summarizes at `2n` to keep cost bounded. See [Limitations](#limitations).
 
 ## Architecture
 
@@ -124,12 +125,11 @@ gcloud kms keys add-iam-policy-binding <key> \
 Then point `PUBLIC_URL` at the deployed URL and run `pnpm set-webhook` (with that
 `PUBLIC_URL`). `GET /` is the health check.
 
+All state (tokens, profiles, sessions) now lives in Supabase, so the `--min/max-instances 1`
+pin above is no longer required for correctness — raise `max-instances` to scale out.
+
 ## Limitations (v1)
 
-- **In-memory sessions:** conversation history lives in one instance's RAM — lost on cold
-  start and not shared across instances. Tokens + profiles persist in Supabase, so re-auth
-  survives restarts; keep `min/max-instances=1` until sessions move to a shared store too.
-  The `SessionStore` interface is the remaining swap point.
 - **`gmail.readonly` is a restricted scope:** fine with test users; requires Google app
   verification before a public launch.
 - The agent runs inline in the webhook handler. Fine for v1; move to a queue if latency grows.

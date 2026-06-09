@@ -39,6 +39,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversation_sessions: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          messages: Json
+          profile_id: string
+          summary: string | null
+          token_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          messages?: Json
+          profile_id: string
+          summary?: string | null
+          token_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          messages?: Json
+          profile_id?: string
+          summary?: string | null
+          token_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_sessions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_connections: {
         Row: {
           created_at: string
