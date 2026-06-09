@@ -18,30 +18,24 @@ export async function getAuthedClient(
   const client = createOAuthClient();
   client.setCredentials({
     refresh_token: refreshToken,
-    access_token: stored.accessToken,
-    expiry_date: stored.expiryDate,
-    scope: stored.scope,
-    token_type: stored.tokenType,
+    scope: stored.scopes.join(" "),
   });
 
-  // Persist rotated access tokens (and, rarely, a new refresh token) as they arrive.
+  // Access tokens aren't persisted (the library fetches them on demand). We only care about
+  // a rotated refresh token, which Google issues rarely — re-encrypt and store it when it does.
   client.on("tokens", (t: Auth.Credentials) => {
+    const rotated = t.refresh_token;
+    if (!rotated) return;
     void (async () => {
       try {
         const current = await deps.tokens.get(uid);
         if (!current) return;
         await deps.tokens.set(uid, {
           ...current,
-          accessToken: t.access_token ?? current.accessToken,
-          expiryDate: t.expiry_date ?? current.expiryDate,
-          scope: t.scope ?? current.scope,
-          tokenType: t.token_type ?? current.tokenType,
-          refreshTokenEnc: t.refresh_token
-            ? await deps.encryptor.encrypt(t.refresh_token)
-            : current.refreshTokenEnc,
+          refreshTokenEnc: await deps.encryptor.encrypt(rotated),
         });
       } catch (err) {
-        console.error(`[google] failed to persist refreshed tokens for ${uid}:`, err);
+        console.error(`[google] failed to persist rotated refresh token for ${uid}:`, err);
       }
     })();
   });

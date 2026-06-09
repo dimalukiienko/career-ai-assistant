@@ -20,8 +20,9 @@ The first time a tool needs Google access, the bot sends you a link to connect y
 - **googleapis** — Gmail + Calendar
 - **Cloud KMS** — envelope encryption for refresh tokens
 
-State (tokens + conversation) is **in-memory** for now, behind `TokenStore` / `SessionStore`
-interfaces so a Supabase backend can be dropped in later. See [Limitations](#limitations).
+Tokens + profiles persist in **Supabase** (Postgres); conversation **sessions** are still
+in-memory, behind the `SessionStore` interface so a Supabase backend can be dropped in later.
+See [Limitations](#limitations).
 
 ## Architecture
 
@@ -43,7 +44,13 @@ Source map: `src/config` (env), `src/crypto` (Encryptor seam), `src/storage` (st
 2. **Google Cloud:** create an OAuth 2.0 Client (type: Web application). Add
    `${PUBLIC_URL}/oauth/google/callback` as an authorized redirect URI. Enable the
    **Gmail API** and **Google Calendar API**. While unverified, add yourself as a test user.
-3. Copy env and fill it in:
+3. **Supabase:** create a project. Authenticate the CLI once with `pnpm supabase login`
+   (interactive — opens a browser), then apply `supabase/migrations/0001_init.sql` (via
+   `pnpm supabase link && pnpm supabase db push`, or paste it into the SQL editor). Copy the
+   project URL → `SUPABASE_URL` and the **service_role** key → `SUPABASE_SERVICE_ROLE_KEY`
+   (server-side secret). The committed `src/types/database.types.ts` is generated from this
+   schema with `pnpm generate:types` (run it again after any migration change).
+4. Copy env and fill it in:
 
    ```bash
    cp .env.example .env
@@ -53,7 +60,7 @@ Source map: `src/config` (env), `src/crypto` (Encryptor seam), `src/storage` (st
    node -e "console.log('LOCAL_ENCRYPTION_KEY=' + require('crypto').randomBytes(32).toString('base64'))"
    ```
 
-4. Install: `pnpm install`
+5. Install: `pnpm install`
 
 The model is set by `OPENAI_MODEL` (OpenAI only). Encryption uses **Cloud KMS** when
 `KMS_KEY_NAME` is set, otherwise the dev-only `LOCAL_ENCRYPTION_KEY`.
@@ -101,7 +108,8 @@ gcloud run deploy career-ai-assistant \
   --source . --region <REGION> --allow-unauthenticated \
   --min-instances 1 --max-instances 1 \
   --set-env-vars "PUBLIC_URL=https://<service-url>,OPENAI_MODEL=gpt-4.1-mini,KMS_KEY_NAME=projects/.../cryptoKeys/<key>" \
-  --set-secrets "TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,OPENAI_API_KEY=...,GOOGLE_CLIENT_ID=...,GOOGLE_CLIENT_SECRET=...,OAUTH_STATE_SECRET=..."
+  --set-env-vars "SUPABASE_URL=https://<project>.supabase.co" \
+  --set-secrets "TELEGRAM_BOT_TOKEN=...,TELEGRAM_WEBHOOK_SECRET=...,OPENAI_API_KEY=...,GOOGLE_CLIENT_ID=...,GOOGLE_CLIENT_SECRET=...,OAUTH_STATE_SECRET=...,SUPABASE_SERVICE_ROLE_KEY=..."
 ```
 
 Grant the runtime service account KMS access:
@@ -118,9 +126,10 @@ Then point `PUBLIC_URL` at the deployed URL and run `pnpm set-webhook` (with tha
 
 ## Limitations (v1)
 
-- **In-memory state:** tokens and conversations live in one instance's RAM — lost on cold
-  start and not shared across instances. Keep `min/max-instances=1` until a shared store
-  (Supabase) lands. The `TokenStore` / `SessionStore` / `Encryptor` interfaces are the swap points.
+- **In-memory sessions:** conversation history lives in one instance's RAM — lost on cold
+  start and not shared across instances. Tokens + profiles persist in Supabase, so re-auth
+  survives restarts; keep `min/max-instances=1` until sessions move to a shared store too.
+  The `SessionStore` interface is the remaining swap point.
 - **`gmail.readonly` is a restricted scope:** fine with test users; requires Google app
   verification before a public launch.
 - The agent runs inline in the webhook handler. Fine for v1; move to a queue if latency grows.

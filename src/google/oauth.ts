@@ -31,3 +31,22 @@ export async function exchangeCode(code: string) {
   const { tokens } = await client.getToken(code);
   return tokens;
 }
+
+/**
+ * Read the `email` claim from a Google id_token. The token comes straight from Google over
+ * TLS in our own code exchange, so we decode the JWT payload without re-verifying the
+ * signature. Returns null if absent or unparseable.
+ */
+export function emailFromIdToken(idToken?: string | null): string | null {
+  if (!idToken) return null;
+  const payload = idToken.split(".")[1];
+  if (!payload) return null;
+  try {
+    const claims = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
+      email?: string;
+    };
+    return claims.email ?? null;
+  } catch {
+    return null;
+  }
+}

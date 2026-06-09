@@ -6,3 +6,7 @@ dist/
 *.log
 .DS_Store
 coverage/
+
+# Supabase CLI local state (linked project ref, versions, etc.)
+supabase/.temp/
+supabase/.branches/

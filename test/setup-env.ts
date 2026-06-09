@@ -10,3 +10,5 @@ process.env.GOOGLE_CLIENT_ID ??= "test-client-id";
 process.env.GOOGLE_CLIENT_SECRET ??= "test-client-secret";
 process.env.OAUTH_STATE_SECRET ??= "test-oauth-state-secret-0123456789";
 process.env.LOCAL_ENCRYPTION_KEY ??= randomBytes(32).toString("base64");
+process.env.SUPABASE_URL ??= "https://test.supabase.co";
+process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-role-key";

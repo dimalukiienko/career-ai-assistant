@@ -2,7 +2,8 @@ import type { Hono } from "hono";
 import type { Bot } from "grammy";
 import type { Deps } from "../../deps.js";
 import { verifyStartLink, createOAuthState, verifyOAuthState } from "../../auth/state.js";
-import { buildAuthUrl, exchangeCode } from "../../google/oauth.js";
+import { buildAuthUrl, exchangeCode, emailFromIdToken } from "../../google/oauth.js";
+import { GOOGLE_SCOPES } from "../../google/scopes.js";
 import { replayAfterAuth } from "../../bot/post-auth.js";
 
 function page(title: string, body: string): string {
@@ -51,10 +52,8 @@ export function registerOAuth(app: Hono, deps: Deps, bot: Bot): void {
 
       await deps.tokens.set(verified.uid, {
         refreshTokenEnc: await deps.encryptor.encrypt(tokens.refresh_token),
-        accessToken: tokens.access_token ?? undefined,
-        expiryDate: tokens.expiry_date ?? undefined,
-        scope: tokens.scope ?? undefined,
-        tokenType: tokens.token_type ?? undefined,
+        googleEmail: emailFromIdToken(tokens.id_token),
+        scopes: tokens.scope ? tokens.scope.split(" ") : [...GOOGLE_SCOPES],
       });
 
       // Detached: re-run any question that was waiting behind the connect prompt and post the

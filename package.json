@@ -8,7 +8,10 @@
     "node": ">=22"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "protobufjs"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "protobufjs"
+    ]
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -17,12 +20,14 @@
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "set-webhook": "tsx scripts/set-webhook.ts"
+    "set-webhook": "tsx scripts/set-webhook.ts",
+    "generate:types": "supabase gen types typescript --linked > src/types/database.types.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.68",
     "@google-cloud/kms": "^5.5.1",
     "@hono/node-server": "^2.0.4",
+    "@supabase/supabase-js": "^2.108.0",
     "ai": "^6.0.198",
     "googleapis": "^173.0.0",
     "grammy": "^1.43.0",
@@ -31,6 +36,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
+    "supabase": "^2.105.0",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"

@@ -5,11 +5,13 @@ import { gmailTools } from "../src/agent/tools/gmail.js";
 import { LocalEncryptor } from "../src/crypto/local.js";
 import { InMemoryTokenStore } from "../src/storage/tokens.js";
 import { InMemorySessionStore } from "../src/storage/sessions.js";
+import { InMemoryProfileStore } from "../src/storage/profiles.js";
 import type { Deps } from "../src/deps.js";
 
 function makeDeps(): Deps {
   return {
     encryptor: new LocalEncryptor(randomBytes(32).toString("base64")),
+    profiles: new InMemoryProfileStore(),
     tokens: new InMemoryTokenStore(),
     sessions: new InMemorySessionStore(),
   };

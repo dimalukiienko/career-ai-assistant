@@ -24,6 +24,10 @@ const schema = z.object({
 
   OAUTH_STATE_SECRET: z.string().min(16, "OAUTH_STATE_SECRET must be at least 16 chars"),
 
+  // Supabase (persistent token storage). Service-role key — server-side only, keep secret.
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY is required"),
+
   // Token encryption: KMS when KMS_KEY_NAME is set, else LOCAL_ENCRYPTION_KEY.
   KMS_KEY_NAME: z.string().optional(),
   LOCAL_ENCRYPTION_KEY: z.string().min(1).optional(),

@@ -32,6 +32,25 @@ const HELP = [
 export function createBot(deps: Deps): Bot {
   const bot = new Bot(env.TELEGRAM_BOT_TOKEN);
 
+  // Capture / refresh the user's profile metadata on every interaction. Failures here must
+  // not block the reply, so we log and continue.
+  bot.use(async (ctx, next) => {
+    if (ctx.from && !ctx.from.is_bot) {
+      try {
+        await deps.profiles.upsert({
+          telegramId: String(ctx.from.id),
+          username: ctx.from.username,
+          firstName: ctx.from.first_name,
+          lastName: ctx.from.last_name,
+          languageCode: ctx.from.language_code,
+        });
+      } catch (err) {
+        console.error("[bot] profile upsert failed:", err);
+      }
+    }
+    await next();
+  });
+
   bot.command("start", (ctx) => ctx.reply(WELCOME));
   bot.command("help", (ctx) => ctx.reply(HELP));
 
