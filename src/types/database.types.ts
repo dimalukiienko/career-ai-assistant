@@ -39,6 +39,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      applications: {
+        Row: {
+          applied_at: string | null
+          company: string
+          created_at: string
+          id: string
+          interview_stages: string[]
+          location: string | null
+          notes: string | null
+          position: string | null
+          profile_id: string
+          salary_note: string | null
+          source: string | null
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+          vacancy_url: string | null
+          work_mode: Database["public"]["Enums"]["work_mode"] | null
+        }
+        Insert: {
+          applied_at?: string | null
+          company: string
+          created_at?: string
+          id?: string
+          interview_stages?: string[]
+          location?: string | null
+          notes?: string | null
+          position?: string | null
+          profile_id: string
+          salary_note?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          vacancy_url?: string | null
+          work_mode?: Database["public"]["Enums"]["work_mode"] | null
+        }
+        Update: {
+          applied_at?: string | null
+          company?: string
+          created_at?: string
+          id?: string
+          interview_stages?: string[]
+          location?: string | null
+          notes?: string | null
+          position?: string | null
+          profile_id?: string
+          salary_note?: string | null
+          source?: string | null
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          vacancy_url?: string | null
+          work_mode?: Database["public"]["Enums"]["work_mode"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_sessions: {
         Row: {
           created_at: string
@@ -202,7 +264,16 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      application_status:
+        | "saved"
+        | "applied"
+        | "screening"
+        | "interviewing"
+        | "offer"
+        | "accepted"
+        | "rejected"
+        | "withdrawn"
+      work_mode: "onsite" | "remote" | "hybrid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -332,6 +403,18 @@ export const Constants = {
     Enums: {},
   },
   public: {
-    Enums: {},
+    Enums: {
+      application_status: [
+        "saved",
+        "applied",
+        "screening",
+        "interviewing",
+        "offer",
+        "accepted",
+        "rejected",
+        "withdrawn",
+      ],
+      work_mode: ["onsite", "remote", "hybrid"],
+    },
   },
 } as const
