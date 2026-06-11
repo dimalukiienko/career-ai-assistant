@@ -10,6 +10,7 @@ import { InMemorySessionStore } from "../src/storage/sessions.js";
 import { InMemoryProfileStore } from "../src/storage/profiles.js";
 import { InMemoryUsageStore } from "../src/storage/usage.js";
 import { InMemoryApplicationStore } from "../src/storage/applications.js";
+import { InMemoryUpdateDedupStore } from "../src/storage/updates.js";
 import type { Deps } from "../src/deps.js";
 
 function makeDeps(): Deps {
@@ -20,6 +21,7 @@ function makeDeps(): Deps {
     sessions: new InMemorySessionStore(),
     usage: new InMemoryUsageStore(),
     applications: new InMemoryApplicationStore(),
+    updates: new InMemoryUpdateDedupStore(),
   };
 }
 

@@ -1,15 +1,15 @@
 import { Bot, InlineKeyboard, type Context } from "grammy";
+import { runAgent, summarizeSession } from "../agent/agent.js";
+import { buildStartUrl } from "../auth/state.js";
 import { env } from "../config/env.js";
 import type { Deps } from "../deps.js";
-import { buildStartUrl } from "../auth/state.js";
-import { runAgent, summarizeSession } from "../agent/agent.js";
 
 const WELCOME = [
   "👋 Hi! I'm your career assistant.",
   "",
   "I can read your Google Calendar and Gmail to help you stay on top of your job search — for example:",
-  "• \"What's on my calendar tomorrow?\"",
-  "• \"Summarize my emails from last week.\"",
+  '• "What\'s on my calendar tomorrow?"',
+  '• "Summarize my emails from last week."',
   "",
   "The first time you ask, I'll send you a link to securely connect your Google account.",
   "Type /help for more, or /new to start a fresh conversation.",
@@ -19,8 +19,8 @@ const HELP = [
   "I read your Google Calendar and Gmail (read-only) to answer questions.",
   "",
   "Try:",
-  "• \"Do I have any interviews this week?\"",
-  "• \"Show recruiter emails from the last 7 days.\"",
+  '• "Do I have any interviews this week?"',
+  '• "Show recruiter emails from the last 7 days."',
   "",
   "Commands:",
   "/start — intro",
@@ -34,14 +34,20 @@ const NO_LINK = { link_preview_options: { is_disabled: true } } as const;
 
 /** Buttons offered when a conversation's context crosses the token threshold. */
 function offerKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("📝 Summarize & continue", "sess:summarize")
-    .text("🆕 Start fresh", "sess:new");
+  return new InlineKeyboard().text("📝 Summarize & continue", "sess:summarize").text("🆕 Start fresh", "sess:new");
 }
 
 /** Build the grammY bot wired to the shared dependencies. */
 export function createBot(deps: Deps): Bot {
   const bot = new Bot(env.TELEGRAM_BOT_TOKEN);
+
+  // Idempotency guard: claim this update_id before any work. A redelivered update (Telegram
+  // retries when a turn outruns the webhook timeout) fails the claim and is dropped here, so
+  // one message is never processed twice. Must run first, ahead of the profile upsert below.
+  bot.use(async (ctx, next) => {
+    if (!(await deps.updates.claim(ctx.update.update_id))) return;
+    await next();
+  });
 
   // Capture / refresh the user's profile metadata on every interaction. Failures here must
   // not block the reply, so we log and continue.

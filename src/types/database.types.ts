@@ -183,6 +183,21 @@ export type Database = {
           },
         ]
       }
+      processed_updates: {
+        Row: {
+          created_at: string
+          update_id: number
+        }
+        Insert: {
+          created_at?: string
+          update_id: number
+        }
+        Update: {
+          created_at?: string
+          update_id?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
