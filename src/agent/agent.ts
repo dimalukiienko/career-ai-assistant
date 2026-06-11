@@ -52,6 +52,7 @@ function systemPrompt(summary: string | null | undefined, turnText: string): str
     `The current UTC date and time is ${now.toISOString()}.`,
     "Resolve relative dates like 'today', 'tomorrow', or 'last week' into absolute dates before calling tools; assume UTC unless the user gives a timezone.",
     "If a tool returns status 'needs_auth', share its authUrl with the user as a clickable link, briefly explain it connects their Google account, and then stop.",
+    "When searching Gmail, if a list_emails search returns no results (count 0), don't give up immediately: try again with a broader query — search by subject: or a plain keyword instead of from:, drop or widen the date range, or use the sender's company/name as a keyword. Only tell the user nothing was found after a reasonable broader attempt.",
     "Keep replies concise and friendly for a chat interface. Summarize calendar events and emails rather than dumping raw fields.",
   ];
   lines.push(...contextualInstructions(turnText));

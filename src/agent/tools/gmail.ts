@@ -17,7 +17,11 @@ export function gmailTools(ctx: UserContext, deps: Deps) {
         query: z
           .string()
           .optional()
-          .describe('Extra Gmail search terms, e.g. "from:recruiter is:unread"'),
+          .describe(
+            'Extra Gmail search terms. Supports any Gmail operator or plain keywords, ' +
+              'e.g. "from:recruiter is:unread", "subject:interview", or just "Acme". ' +
+              "If a from: search finds nothing, retry with subject: or a bare keyword.",
+          ),
         maxResults: z.number().int().min(1).max(30).optional(),
       }),
       execute: async (params) => {
