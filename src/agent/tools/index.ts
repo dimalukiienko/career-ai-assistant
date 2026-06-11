@@ -2,6 +2,7 @@ import type { Deps } from "../../deps.js";
 import { applicationTools } from "./applications.js";
 import { calendarTools } from "./calendar.js";
 import { gmailTools } from "./gmail.js";
+import { jobPostingTools } from "./job-posting.js";
 import type { UserContext } from "./shared.js";
 
 export type { UserContext } from "./shared.js";
@@ -12,5 +13,6 @@ export function buildTools(ctx: UserContext, deps: Deps) {
     ...calendarTools(ctx, deps),
     ...gmailTools(ctx, deps),
     ...applicationTools(ctx, deps),
+    ...jobPostingTools(ctx, deps),
   };
 }
