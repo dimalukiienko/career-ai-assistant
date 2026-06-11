@@ -12,7 +12,33 @@ function usageFrom(u: LanguageModelUsage): TokenUsage {
   return { inputTokens, outputTokens, totalTokens: u.totalTokens ?? inputTokens + outputTokens };
 }
 
-function systemPrompt(summary?: string | null): string {
+const URL_RE = /https?:\/\/\S+/i;
+
+/** True when the text contains an http(s) URL (not just the bare word "http"). */
+export function containsUrl(text: string): boolean {
+  return URL_RE.test(text);
+}
+
+/**
+ * Extra system-prompt lines injected only when the turn's content warrants them. Keeps
+ * conditional hints in one place so new rules are easy to add.
+ */
+export function contextualInstructions(turnText: string): string[] {
+  const lines: string[] = [];
+  if (containsUrl(turnText)) {
+    lines.push(
+      "The user's latest message contains a link. If their request involves a job " +
+        "or application (e.g. saving/tracking a role, scheduling around an interview) " +
+        "but they did not explicitly ask you to read the link, offer to fetch the " +
+        "posting with fetch_job_posting first to fill in the title, company, and " +
+        "requirements — then proceed once they confirm. If they did ask you to read " +
+        "it, just fetch it.",
+    );
+  }
+  return lines;
+}
+
+function systemPrompt(summary: string | null | undefined, turnText: string): string {
   const now = new Date();
   const lines = [
     "You are a helpful career assistant inside a Telegram chat.",
@@ -28,6 +54,7 @@ function systemPrompt(summary?: string | null): string {
     "If a tool returns status 'needs_auth', share its authUrl with the user as a clickable link, briefly explain it connects their Google account, and then stop.",
     "Keep replies concise and friendly for a chat interface. Summarize calendar events and emails rather than dumping raw fields.",
   ];
+  lines.push(...contextualInstructions(turnText));
   if (summary) {
     lines.push(
       `Summary of the earlier conversation (continue from this context):\n${summary}`,
@@ -82,7 +109,7 @@ export async function runAgent(deps: Deps, { uid, oauthUrl, text, onToolCall }: 
   const tools = buildTools({ uid, oauthUrl }, deps);
   const result = await generateText({
     model: getModel(),
-    system: systemPrompt(summary),
+    system: systemPrompt(summary, text),
     messages: [...messages, userMessage],
     tools: onToolCall ? withToolNotifications(tools, onToolCall) : tools,
     stopWhen: stepCountIs(env.AGENT_MAX_STEPS),
