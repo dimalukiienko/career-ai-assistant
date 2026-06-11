@@ -20,26 +20,29 @@ export function containsUrl(text: string): boolean {
 }
 
 /**
- * Extra system-prompt lines injected only when the turn's content warrants them. Keeps
- * conditional hints in one place so new rules are easy to add.
+ * The link-handling hint. Worded source-agnostically because a URL can enter the turn's
+ * context two ways: in the user's message, or in content a tool pulled in (e.g. an email
+ * body returned by list_emails).
  */
+const URL_HINT =
+  "There's a link in the current context — either in the user's latest message or in " +
+  "content a tool fetched (e.g. an email body). If the request involves a job or " +
+  "application (e.g. saving/tracking a role, scheduling around an interview) but the user " +
+  "did not explicitly ask you to read the link, offer to fetch the posting with " +
+  "fetch_job_posting first to fill in the title, company, and requirements — then proceed " +
+  "once they confirm. If they did ask you to read it, just fetch it.";
+
+/** The link hint, for when the user's own message carries a URL. */
 export function contextualInstructions(turnText: string): string[] {
-  const lines: string[] = [];
-  if (containsUrl(turnText)) {
-    lines.push(
-      "The user's latest message contains a link. If their request involves a job " +
-        "or application (e.g. saving/tracking a role, scheduling around an interview) " +
-        "but they did not explicitly ask you to read the link, offer to fetch the " +
-        "posting with fetch_job_posting first to fill in the title, company, and " +
-        "requirements — then proceed once they confirm. If they did ask you to read " +
-        "it, just fetch it.",
-    );
-  }
-  return lines;
+  return containsUrl(turnText) ? [URL_HINT] : [];
 }
 
-function systemPrompt(summary: string | null | undefined, turnText: string): string {
-  const now = new Date();
+/** True when any tool-result message in the step carries an http(s) URL in its output. */
+export function toolResultsContainUrl(messages: ModelMessage[]): boolean {
+  return messages.some((m) => m.role === "tool" && URL_RE.test(JSON.stringify(m.content)));
+}
+
+function systemPrompt(summary: string | null | undefined, hasUrl: boolean, now: Date): string {
   const lines = [
     "You are a helpful career assistant inside a Telegram chat.",
     "You can read the user's Google Calendar and Gmail through tools.",
@@ -55,11 +58,9 @@ function systemPrompt(summary: string | null | undefined, turnText: string): str
     "When searching Gmail, if a list_emails search returns no results (count 0), don't give up immediately: try again with a broader query — search by subject: or a plain keyword instead of from:, drop or widen the date range, or use the sender's company/name as a keyword. Only tell the user nothing was found after a reasonable broader attempt.",
     "Keep replies concise and friendly for a chat interface. Summarize calendar events and emails rather than dumping raw fields.",
   ];
-  lines.push(...contextualInstructions(turnText));
+  if (hasUrl) lines.push(URL_HINT);
   if (summary) {
-    lines.push(
-      `Summary of the earlier conversation (continue from this context):\n${summary}`,
-    );
+    lines.push(`Summary of the earlier conversation (continue from this context):\n${summary}`);
   }
   return lines.join("\n");
 }
@@ -108,12 +109,20 @@ export async function runAgent(deps: Deps, { uid, oauthUrl, text, onToolCall }: 
   const userMessage: ModelMessage = { role: "user", content: text };
 
   const tools = buildTools({ uid, oauthUrl }, deps);
+  const now = new Date();
+  const userHasUrl = containsUrl(text);
   const result = await generateText({
     model: getModel(),
-    system: systemPrompt(summary, text),
+    system: systemPrompt(summary, userHasUrl, now),
     messages: [...messages, userMessage],
     tools: onToolCall ? withToolNotifications(tools, onToolCall) : tools,
     stopWhen: stepCountIs(env.AGENT_MAX_STEPS),
+    // Inject the link hint mid-loop once a tool pulls a URL into context (the base prompt
+    // only covers URLs in the user's own message).
+    prepareStep: ({ messages: stepMessages }) => {
+      if (userHasUrl || !toolResultsContainUrl(stepMessages)) return {};
+      return { system: systemPrompt(summary, true, now) };
+    },
   });
 
   const usage = usageFrom(result.usage);

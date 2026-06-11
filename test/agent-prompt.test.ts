@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { containsUrl, contextualInstructions } from "../src/agent/agent.js";
+import type { ModelMessage } from "ai";
+import { containsUrl, contextualInstructions, toolResultsContainUrl } from "../src/agent/agent.js";
 
 describe("containsUrl", () => {
   it("detects https and http URLs", () => {
@@ -22,5 +23,28 @@ describe("contextualInstructions", () => {
 
   it("returns no extra lines without a URL", () => {
     expect(contextualInstructions("what's on my calendar tomorrow")).toEqual([]);
+  });
+});
+
+describe("toolResultsContainUrl", () => {
+  const toolResult = (output: unknown): ModelMessage => ({
+    role: "tool",
+    content: [{ type: "tool-result", toolCallId: "1", toolName: "list_emails", output: { type: "json", value: output } }],
+  });
+
+  it("detects a URL inside a tool result's output", () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "any new interview emails?" },
+      toolResult({ emails: [{ subject: "Onsite", body: "Apply at https://jobs.example.com/x" }] }),
+    ];
+    expect(toolResultsContainUrl(messages)).toBe(true);
+  });
+
+  it("ignores URLs in non-tool messages and returns false when tools carry none", () => {
+    const messages: ModelMessage[] = [
+      { role: "user", content: "check https://example.com for me" },
+      toolResult({ emails: [{ subject: "Hello", body: "no links here" }] }),
+    ];
+    expect(toolResultsContainUrl(messages)).toBe(false);
   });
 });
