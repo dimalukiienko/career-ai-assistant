@@ -124,6 +124,14 @@ export function createBot(deps: Deps): Bot {
         uid,
         oauthUrl: buildStartUrl(uid),
         text: ctx.message.text,
+        // Dev-only: surface each tool call (name + args) in the chat for debugging.
+        onToolCall: env.isDev
+          ? async (name, input) => {
+              const args = JSON.stringify(input);
+              const body = args.length > 500 ? `${args.slice(0, 500)}…` : args;
+              await ctx.reply(`🔧 ${name} ${body}`, NO_LINK).catch(() => {});
+            }
+          : undefined,
       });
       await ctx.reply(result.text, NO_LINK);
       await applyThresholdPolicy(deps, ctx, uid, result.prevTokens, result.tokens);

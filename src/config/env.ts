@@ -5,6 +5,10 @@ import { z } from "zod";
  * process fails fast at startup with a clear message if anything required is missing.
  */
 const schema = z.object({
+  // dev/prod signal; controls dev-only behaviors like tool-call notifications. "test" is
+  // included because vitest sets NODE_ENV=test — omitting it would make env throw in tests.
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+
   PORT: z.coerce.number().int().positive().default(8080),
   PUBLIC_URL: z
     .string()
@@ -39,6 +43,8 @@ const schema = z.object({
 export type Env = z.infer<typeof schema> & {
   /** Effective Google OAuth redirect URI (derived from PUBLIC_URL when unset). */
   googleRedirectUri: string;
+  /** True when NODE_ENV is "development" — gates dev-only behaviors. */
+  isDev: boolean;
 };
 
 function load(): Env {
@@ -56,6 +62,7 @@ function load(): Env {
   return {
     ...e,
     googleRedirectUri: e.GOOGLE_REDIRECT_URI || `${e.PUBLIC_URL}/oauth/google/callback`,
+    isDev: e.NODE_ENV === "development",
   };
 }
 

@@ -40,6 +40,30 @@ export interface RunAgentArgs {
   uid: string;
   oauthUrl: string;
   text: string;
+  /** Dev-only hook: fired before each tool's execute, with the tool name + validated input. */
+  onToolCall?: (toolName: string, input: unknown) => void | Promise<void>;
+}
+
+/**
+ * Wrap each tool's `execute` so `onToolCall` fires (with the tool name + input) right before
+ * the real execution. Generic over the tools record so the AI SDK typing is preserved.
+ */
+function withToolNotifications<T extends Record<string, any>>(
+  tools: T,
+  onToolCall: (toolName: string, input: unknown) => void | Promise<void>,
+): T {
+  return Object.fromEntries(
+    Object.entries(tools).map(([name, t]) => [
+      name,
+      {
+        ...t,
+        execute: async (input: unknown, opts: any) => {
+          await onToolCall(name, input);
+          return t.execute(input, opts);
+        },
+      },
+    ]),
+  ) as T;
 }
 
 export interface RunAgentResult {
@@ -51,15 +75,16 @@ export interface RunAgentResult {
 }
 
 /** Run one turn of the agent for a user message and return the assistant's reply + token usage. */
-export async function runAgent(deps: Deps, { uid, oauthUrl, text }: RunAgentArgs): Promise<RunAgentResult> {
+export async function runAgent(deps: Deps, { uid, oauthUrl, text, onToolCall }: RunAgentArgs): Promise<RunAgentResult> {
   const { messages, summary, tokenCount: prevTokens } = await deps.sessions.getActive(uid);
   const userMessage: ModelMessage = { role: "user", content: text };
 
+  const tools = buildTools({ uid, oauthUrl }, deps);
   const result = await generateText({
     model: getModel(),
     system: systemPrompt(summary),
     messages: [...messages, userMessage],
-    tools: buildTools({ uid, oauthUrl }, deps),
+    tools: onToolCall ? withToolNotifications(tools, onToolCall) : tools,
     stopWhen: stepCountIs(env.AGENT_MAX_STEPS),
   });
 
